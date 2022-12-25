@@ -8,7 +8,7 @@ for repo in storage.Repository.select():
     dct = json.loads(js)
     for secret in _lst:
         out = (
-            f"gh secret set {secret['name']} --repo "
-            "{dct['full_name']} --body '${secret['name']}'"
+            f'gh secret set {secret["name"]} --repo '
+            '{dct["full_name"]} --body "${secret["name"]}"'
         )
         print(out)
