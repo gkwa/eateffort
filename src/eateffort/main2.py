@@ -4,5 +4,11 @@ from . import storage
 
 for repo in storage.Repository.select():
     _lst = json.loads(repo.secrets)
+    js = repo.github_json
+    dct = json.loads(js)
     for secret in _lst:
-        print(repo.repository, secret["name"])
+        out = (
+            f"gh secret set {secret['name']} --repo "
+            "{dct['full_name']} --body '${secret['name']}'"
+        )
+        print(out)
