@@ -25,37 +25,28 @@ headers = {
     "Accept": "application/vnd.github+json",
 }
 
-logging.basicConfig(
-    format="%(asctime)s - %(name)s - %(levelname)s - %(message)s",
-    level=logging.INFO,
-    handlers=[
-        #        logging.FileHandler(f"{pathlib.Path(__file__)}.log"),
-        logging.StreamHandler(sys.stdout),
-    ],
-)
-
 
 def doit(url: str):
     response = requests.get(url, headers=headers)
 
-    logging.info(f"Status code: {response.status_code}")
-    logging.info("Repositories:")
+    _logger.info(f"Status code: {response.status_code}")
+    _logger.info("Repositories:")
 
     if not response.json():
         return None
 
     for repository in response.json():
-        logging.info(repository["name"])
+        _logger.info(repository["name"])
 
     repo_names = [repo.repository for repo in storage.Repository.select()]
 
     for repository in response.json():
 
         name = repository["name"]
-        logging.debug(name)
+        _logger.debug(name)
 
         if name in repo_names:
-            logging.debug(f"skipping {name} because its already been seen")
+            _logger.debug(f"skipping {name} because its already been seen")
             continue
 
         url = f"{api_base_url}/repos/{repository['full_name']}/actions/secrets"
@@ -120,19 +111,19 @@ def setup_logging(loglevel):
 
 
 def main(args):
+    args = parse_args(args)
+    setup_logging(args.loglevel)
+    _logger.debug("Starting crazy calculations...")
+
     storage.Repository.create_table()
 
     page_count = 1
     while True:
-        logging.info(f"page {page_count}")
+        _logger.info(f"page {page_count}")
         url = f"{api_base_url}/user/repos?per_page=100&page={page_count}"
         if not doit(url):
             break
         page_count += 1
-
-    args = parse_args(args)
-    setup_logging(args.loglevel)
-    _logger.debug("Starting crazy calculations...")
 
     # print("The {}-th Fibonacci number is {}".format(args.n, fib(args.n)))
     _logger.info("Script ends here")

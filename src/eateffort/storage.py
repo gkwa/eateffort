@@ -1,8 +1,23 @@
 import datetime
+import logging
+import pathlib
 
 import peewee
+import platformdirs
 
-db = peewee.SqliteDatabase("stuff.db")
+appname = "eateffort"
+appauthor = "monacelli"
+
+db_path = pathlib.Path(platformdirs.user_data_dir(appname, appauthor)) / f"{appname}.db"
+
+db_path.parent.mkdir(exist_ok=True, parents=True)
+
+_logger = logging.getLogger(__name__)
+
+_logger.debug(db_path)
+
+
+db = peewee.SqliteDatabase(db_path)
 
 
 class Repository(peewee.Model):
