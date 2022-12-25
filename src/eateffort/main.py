@@ -3,6 +3,7 @@ import json
 import logging
 import os
 import sys
+import typing
 
 import requests
 
@@ -24,42 +25,6 @@ headers = {
     "Authorization": f"Token {personal_access_token}",
     "Accept": "application/vnd.github+json",
 }
-
-
-def doit(url: str):
-    response = requests.get(url, headers=headers)
-
-    _logger.info(f"Status code: {response.status_code}")
-    _logger.info("Repositories:")
-
-    if not response.json():
-        return None
-
-    for repository in response.json():
-        _logger.info(repository["name"])
-
-    repo_names = [repo.repository for repo in storage.Repository.select()]
-
-    for repository in response.json():
-
-        name = repository["name"]
-        _logger.debug(name)
-
-        if name in repo_names:
-            _logger.debug(f"skipping {name} because its already been seen")
-            continue
-
-        url = f"{api_base_url}/repos/{repository['full_name']}/actions/secrets"
-
-        response = requests.get(url, headers=headers)
-        secrets = response.json()["secrets"]
-        js = json.dumps(secrets)
-        github_json = json.dumps(repository)
-
-        repo = storage.Repository(repository=name, secrets=js, github_json=github_json)
-        repo.save()
-
-    return True
 
 
 def parse_args(args):
@@ -110,22 +75,76 @@ def setup_logging(loglevel):
     )
 
 
+def fetch_secrets(repository: typing.Dict):
+    url = f"{api_base_url}/repos/{repository['full_name']}/actions/secrets"
+    response = requests.get(url, headers=headers)
+    secrets = response.json()["secrets"]
+    return secrets
+
+
+def save_attributes(repository):
+    secrets = fetch_secrets(repository)
+
+    js = json.dumps(secrets)
+    github_json = json.dumps(repository)
+    repo = storage.Repository(
+        repository=repository["name"], secrets=js, github_json=github_json
+    )
+    repo.save()
+
+
+def doit(repositories: typing.List):
+    for repository in repositories:
+        save_attributes(repository)
+
+
+def filter_seen(repositories: typing.Dict):
+    seen = {repo.repository for repo in storage.Repository.select()}
+
+    todo = []
+    for repo in repositories:
+        _logger.debug(repo["name"])
+
+        if repo["name"] in seen:
+            _logger.debug(f"skipping {repo['name']} because its already been seen")
+            continue
+
+        todo.append(repo)
+
+    return todo
+
+
+def fetch_repositories(url: str) -> typing.Dict:
+    response = requests.get(url, headers=headers)
+    _logger.info(f"Status code: {response.status_code}")
+
+    for repository in response.json():
+        _logger.info(repository["name"])
+
+    return response.json()
+
+
 def main(args):
     args = parse_args(args)
     setup_logging(args.loglevel)
-    _logger.debug("Starting crazy calculations...")
+    _logger.debug("Starting script.")
 
     storage.Repository.create_table()
 
-    page_count = 1
+    page_count = 0
     while True:
+        page_count += 1
         _logger.info(f"page {page_count}")
         url = f"{api_base_url}/user/repos?per_page=100&page={page_count}"
-        if not doit(url):
-            break
-        page_count += 1
 
-    # print("The {}-th Fibonacci number is {}".format(args.n, fib(args.n)))
+        repositories = fetch_repositories(url)
+
+        if not repositories:
+            break
+
+        remaining_repositories = filter_seen(repositories)
+        doit(remaining_repositories)
+
     _logger.info("Script ends here")
 
 

@@ -14,7 +14,7 @@ db_path.parent.mkdir(exist_ok=True, parents=True)
 
 _logger = logging.getLogger(__name__)
 
-_logger.debug(db_path)
+_logger.debug(f"db: {db_path}")
 
 
 db = peewee.SqliteDatabase(db_path)

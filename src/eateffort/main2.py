@@ -9,6 +9,6 @@ for repo in storage.Repository.select():
     for secret in _lst:
         out = (
             f'gh secret set {secret["name"]} --repo '
-            f'{dct["full_name"]} --body "${secret["name"]}"'
+            f'{dct["full_name"]} --body "${secret["name"]}" &'
         )
         print(out)
